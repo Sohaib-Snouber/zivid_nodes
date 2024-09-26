@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="zivid_camera" exec="zivid_camera" name="zivid_camera" />
+  <node pkg="zivid_nodes" exec="warm_up" name="warm_up" />
+  <node pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share zivid_camera)/config/rviz/zivid.rviz" />
+</launch>
