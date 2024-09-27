@@ -9,10 +9,7 @@ find_package(Eigen3 3.3 REQUIRED)
 # Find Zivid SDK package
 find_package(Zivid REQUIRED)
 # Client actions dependency (ensure this is linked properly)
-find_package(action_interfaces REQUIRED)
-find_package(service_interfaces REQUIRED)
-find_package(full_drive REQUIRED)
-find_package(rclcpp_action REQUIRED)
+find_package(custom_messages REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
@@ -30,14 +27,11 @@ add_executable(calibration_node src/calibration_node.cpp)
 ament_target_dependencies(calibration_node
  rclcpp 
  Eigen3 
- Zivid 
- action_interfaces 
- service_interfaces 
- full_drive 
- rclcpp_action
+ Zivid   
  tf2_geometry_msgs
  tf2_ros
  tf2
+ custom_messages
 )
 
 target_link_libraries(calibration_node Zivid::Core)

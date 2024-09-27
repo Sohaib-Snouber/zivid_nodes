@@ -13,16 +13,11 @@
   <depend>zivid_camera</depend>
   <depend>Eigen3</depend>
   <depend>Zivid</depend>
-  <depend>action_interfaces</depend>
-  <depend>service_interfaces</depend>
-  <depend>full_drive</depend>
-  <depend>rclcpp_action</depend>
   <depend>tf2_geometry_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tf2</depend>
+  <depend>custom_messages</depend>
 
-
- 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_cmake_gtest</test_depend>
 
