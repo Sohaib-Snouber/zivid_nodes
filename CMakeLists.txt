@@ -13,6 +13,9 @@ find_package(custom_messages REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(full_drive REQUIRED)
+find_package(action_interfaces REQUIRED)
+find_package(service_interfaces REQUIRED)
 
 add_executable(warm_up src/warm_up.cpp)
 ament_target_dependencies(warm_up rclcpp std_srvs zivid_camera)
@@ -33,19 +36,37 @@ ament_target_dependencies(calibration_node
  tf2
  custom_messages
 )
+add_executable(hand_eye_calibration src/hand_eye_calibration.cpp)
+ament_target_dependencies(hand_eye_calibration
+ rclcpp 
+ Eigen3 
+ Zivid   
+ tf2_geometry_msgs
+ tf2_ros
+ tf2
+ full_drive
+ action_interfaces
+ service_interfaces
+)
 
 target_link_libraries(calibration_node Zivid::Core)
+target_link_libraries(hand_eye_calibration Zivid::Core)
 target_link_libraries(warm_camera Zivid::Core)
 
 include_directories(${EIGEN3_INCLUDE_DIR})
 target_include_directories(calibration_node PUBLIC 
   ${CMAKE_SOURCE_DIR}/../full_drive/include
 )
+target_include_directories(hand_eye_calibration PUBLIC 
+  ${CMAKE_SOURCE_DIR}/../full_drive/include
+)
+
 install(TARGETS
  warm_up
  warm_camera
  robot_pose_node
  calibration_node
+ hand_eye_calibration
  DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

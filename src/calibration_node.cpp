@@ -30,29 +30,30 @@ private:
     Zivid::Camera camera;
     std::vector<Eigen::Matrix4d> calibration_poses_;
 
-    geometry_msgs::msg::PoseStamped createRobotCalibrationPose(double x, double y, double z, double rx, double ry, double rz) {
+    geometry_msgs::msg::PoseStamped createRobotCalibrationPose(double x, double y, double z, double qx, double qy, double qz, double qw) {
         geometry_msgs::msg::PoseStamped target_pose;
         target_pose.header.stamp = this->now();
         target_pose.header.frame_id = "world";
-        target_pose.pose.position.x = -x;
-        target_pose.pose.position.y = -y;
+        target_pose.pose.position.x = x;
+        target_pose.pose.position.y = y;
         target_pose.pose.position.z = z;
-        tf2::Quaternion q;
-        q.setRPY(rx, ry, rz);
-        target_pose.pose.orientation = tf2::toMsg(q);
+        
+        target_pose.pose.orientation.w = qw;
+        target_pose.pose.orientation.x = qx;
+        target_pose.pose.orientation.y = qy;
+        target_pose.pose.orientation.z = qz;
+        
         return target_pose;
     }
 
-    void convertPosesTo4_4Matrices(double x, double y, double z, double rx, double ry, double rz) {
-        tf2::Quaternion q;
-        q.setRPY(rx, ry, rz);
+    void convertPosesTo4_4Matrices(double x, double y, double z, double qx, double qy, double qz, double qw) {
 
         Eigen::Matrix4d pose = Eigen::Matrix4d::Identity();
         pose(0, 3) = x;
         pose(1, 3) = y;
         pose(2, 3) = z;
 
-        Eigen::Quaterniond quaternion(q.x(), q.y(), q.z(), q.w());
+        Eigen::Quaterniond quaternion(qx, qy, qz, qw);
         pose.block<3, 3>(0, 0) = quaternion.toRotationMatrix();
 
         calibration_poses_.push_back(pose);
@@ -80,7 +81,7 @@ private:
 
             std::vector<geometry_msgs::msg::PoseStamped> robot_calibration_poses;
 
-            // Define calibration poses for the robot
+            /* // Define calibration poses for the robot
             robot_calibration_poses.push_back(createRobotCalibrationPose(-0.1853, -0.2072, 0.7464, 0.043, 2.812, -0.192)); // Pose 1
             robot_calibration_poses.push_back(createRobotCalibrationPose(-0.16316, -0.27452, 0.7464, 0.071, 2.99, -0.032)); // Pose 2
             robot_calibration_poses.push_back(createRobotCalibrationPose(-0.16316, -0.13117, 0.7464, 0.041, 2.954, -0.422)); // Pose 3
@@ -89,7 +90,20 @@ private:
             robot_calibration_poses.push_back(createRobotCalibrationPose(0.458, -0.249, 0.519, 0.021, 3.235, -0.127)); // Pose 6
             robot_calibration_poses.push_back(createRobotCalibrationPose(0.458, -0.508, 0.4775, 0.016, -2.983, -0.612)); // Pose 7
             robot_calibration_poses.push_back(createRobotCalibrationPose(0.1477, -0.2145, 0.4997, 0.010, -2.914, 0.202)); // Pose 8
-            robot_calibration_poses.push_back(createRobotCalibrationPose(-0.1853, -0.2072, 0.5215, 0.043, 2.812, -0.192)); // Pose 9
+            robot_calibration_poses.push_back(createRobotCalibrationPose(-0.1853, -0.2072, 0.5215, 0.043, 2.812, -0.192)); // Pose 9 */
+            
+            // Define calibration poses for the robot
+            robot_calibration_poses.push_back(createRobotCalibrationPose(0.08544, 0.19088, 0.54515, 0.996671, -0.00059, -0.01546, -0.08002)); // Pose 1
+            robot_calibration_poses.push_back(createRobotCalibrationPose(0.08544, 0.19088, 0.55515, 0.996671, -0.00059, -0.01546, -0.08002)); // Pose 1
+            /* robot_calibration_poses.push_back(createRobotCalibrationPose(0.31207, 0.19959, 0.48735, 0.97663, 0.01425, -0.199948, -0.07862)); // Pose 2
+            robot_calibration_poses.push_back(createRobotCalibrationPose(-0.328, 0.20638, 0.47468, 0.96711, 0.02897, 0.2443, -0.0645)); // Pose 3
+            robot_calibration_poses.push_back(createRobotCalibrationPose(-0.37985, 0.18753, 0.59259, 0.97582, -0.0234, 0.20227, -0.079316)); // Pose 4
+            robot_calibration_poses.push_back(createRobotCalibrationPose(-0.320415, 0.489015, 0.51259, 0.97044, 0.02831, 0.1767, 0.161835)); // Pose 5
+            robot_calibration_poses.push_back(createRobotCalibrationPose(-0.05647, 0.4982, 0.5411, 0.984833, 0.00819, 0.05582, 0.16407)); // Pose 6
+            robot_calibration_poses.push_back(createRobotCalibrationPose(0.15184, 0.49928, 0.54578, 0.973477, -0.02756, -0.15922, 0.16196)); // Pose 7
+            robot_calibration_poses.push_back(createRobotCalibrationPose(0.16935, 0.47358, 0.679226, 0.993687, -0.01902, -0.07153, 0.08428)); // Pose 8
+            robot_calibration_poses.push_back(createRobotCalibrationPose(0.15322, 0.38491, 0.694855, 0.99622, -0.01372, -0.0088, 0.0853)); // Pose 9
+            robot_calibration_poses.push_back(createRobotCalibrationPose(0.15297, 0.34161, 0.7619, 0.999812, -0.0145, -0.00746, -0.01049)); // Pose 10 */
 
             // Convert these poses to 4x4 matrices for Zivid calibration
             for (const auto& pose : robot_calibration_poses) {
@@ -98,13 +112,14 @@ private:
                 double y = pose.pose.position.y;
                 double z = pose.pose.position.z;
 
-                // Convert quaternion (orientation) to roll, pitch, yaw
-                tf2::Quaternion q(pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w);
-                double roll, pitch, yaw;
-                tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+                double qx = pose.pose.orientation.x;
+                double qy = pose.pose.orientation.y;
+                double qz = pose.pose.orientation.z;
+                double qw = pose.pose.orientation.w;
+
 
                 // Convert to 4x4 matrix with proper rotation and translation
-                convertPosesTo4_4Matrices(x, y, z, roll, pitch, yaw);
+                convertPosesTo4_4Matrices(x, y, z, qx, qy, qz, qw);
             }
 
             for (size_t i = 0; i < robot_calibration_poses.size(); ++i) {
