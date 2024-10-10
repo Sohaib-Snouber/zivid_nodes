@@ -20,6 +20,11 @@
   <depend>full_drive</depend>
   <depend>action_interfaces</depend>
   <depend>service_interfaces</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>zivid_interfaces</depend>
+  <depend>pcl_conversions</depend>
 
 
   <test_depend>ament_lint_auto</test_depend>

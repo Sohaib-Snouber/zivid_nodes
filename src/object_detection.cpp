@@ -33,27 +33,28 @@ public:
             RCLCPP_INFO(this->get_logger(), "Waiting for capture service...");
         }
 
-        // Set up Capture Assistant Suggest Settings service client
+        /* // Set up Capture Assistant Suggest Settings service client
         capture_assistant_client_ = this->create_client<zivid_interfaces::srv::CaptureAssistantSuggestSettings>("capture_assistant/suggest_settings");
         while (!capture_assistant_client_->wait_for_service(std::chrono::seconds(3))) {
             RCLCPP_INFO(this->get_logger(), "Waiting for capture assistant service...");
-        }
+        } */
 
         // Subscribe to the point cloud topic from the Zivid camera
         point_cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             "points/xyzrgba", 10, std::bind(&ObjectDetection::pointCloudCallback, this, std::placeholders::_1));
 
         // Set capture assistant settings and trigger the first capture
-        suggestCaptureSettingsAndCapture();
+        //suggestCaptureSettingsAndCapture();
+        set_settings_from_file();
     }
 
 private:
-    void suggestCaptureSettingsAndCapture()
+    /* void suggestCaptureSettingsAndCapture()
     {
         RCLCPP_INFO(this->get_logger(), "Requesting Capture Assistant for optimal settings...");
 
         auto request = std::make_shared<zivid_interfaces::srv::CaptureAssistantSuggestSettings::Request>();
-        request->max_capture_time = rclcpp::Duration::from_seconds(10.0);  // No concern for time
+        request->max_capture_time = rclcpp::Duration::from_seconds(5.0);  // No concern for time
         request->ambient_light_frequency = zivid_interfaces::srv::CaptureAssistantSuggestSettings::Request::AMBIENT_LIGHT_FREQUENCY_50HZ;
 
         auto result = capture_assistant_client_->async_send_request(request);
@@ -65,6 +66,35 @@ private:
             RCLCPP_INFO(this->get_logger(), "Capture Assistant has suggested settings, now capturing...");
             triggerCapture();
         }
+    } */
+
+    void set_settings_from_file()
+    {
+        // Define the path to the settings file (replace with your path if needed)
+        const std::string path_to_settings_yml = "/home/sohaib/Desktop/Zivid2_Settings_Zivid_Two_M70_ParcelsReflective.yml";
+        RCLCPP_INFO_STREAM(
+            this->get_logger(),
+            "Setting parameter `settings_file_path` to '" << path_to_settings_yml << "'");
+
+        auto param_client = std::make_shared<rclcpp::AsyncParametersClient>(this, "zivid_camera");
+        while (!param_client->wait_for_service(std::chrono::seconds(3))) {
+            if (!rclcpp::ok()) {
+                RCLCPP_ERROR(this->get_logger(), "Client interrupted while waiting for service to appear.");
+                throw std::runtime_error("Client interrupted while waiting for service to appear.");
+            }
+            RCLCPP_INFO(this->get_logger(), "Waiting for the parameters client to appear...");
+        }
+
+        auto result =
+            param_client->set_parameters({rclcpp::Parameter("settings_file_path", path_to_settings_yml)});
+        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result, std::chrono::seconds(30)) != rclcpp::FutureReturnCode::SUCCESS) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to set `settings_file_path` parameter");
+            throw std::runtime_error("Failed to set `settings_file_path` parameter");
+        }
+
+        RCLCPP_INFO(this->get_logger(), "Settings file applied successfully.");
+
+        triggerCapture();
     }
 
     void triggerCapture()
@@ -153,7 +183,7 @@ private:
 
         // Step 3: Transform centroids from camera frame to world frame
         std::string target_frame = "world";  // Replace this with your world frame
-        std::string source_frame = "zivid_optical_frame";  // Frame of the Zivid camera
+        std::string source_frame = "optical_aligned";  // Frame of the Zivid camera
 
         for (size_t i = 0; i < centroids.size(); ++i) {
             geometry_msgs::msg::PointStamped point_camera_frame;
@@ -166,115 +196,54 @@ private:
                 auto transform = tf_buffer_->lookupTransform(target_frame, source_frame, tf2::TimePointZero);
                 geometry_msgs::msg::PointStamped point_world_frame;
                 tf2::doTransform(point_camera_frame, point_world_frame, transform);
+                // Define the rotation matrix using the values you obtained
+                Eigen::Matrix3d R;
+                R << 0.997,  0.0627, -0.0412, 
+                    -0.0613,   0.998,  0.033,
+                     0.0431, -0.0304,   0.999;
+
+                // Define the translation vector using the values you obtained
+                Eigen::Vector3d t(0.001, -0.022, -0.000);
+
+                // Convert the rotation matrix to a quaternion
+                Eigen::Quaterniond quaternion(R);
+
+                Eigen::Matrix4d T_calibration = Eigen::Matrix4d::Identity(); // Initialize as identity
+                T_calibration.block<3,3>(0,0) = R;  // Set rotation
+                T_calibration.block<3,1>(0,3) = t;  // Set translation 
+
+                // Print the quaternion (x, y, z, w)
+                /* RCLCPP_INFO(this->get_logger(), "Quaternion: x: %.3f, y: %.3f, z: %.3f, w: %.3f",
+                            quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w()); */
+
 
                 RCLCPP_INFO(this->get_logger(), "Red cylinder centroid in camera frame: x: %.3f, y: %.3f, z: %.3f",
                             point_camera_frame.point.x, point_camera_frame.point.y, point_camera_frame.point.z);
                 RCLCPP_INFO(this->get_logger(), "Red cylinder centroid in world frame: x: %.3f, y: %.3f, z: %.3f",
                             point_world_frame.point.x, point_world_frame.point.y, point_world_frame.point.z);
-                // Store the detected camera frame points
-                camera_points.emplace_back(point_world_frame.point.x, point_world_frame.point.y, point_world_frame.point.z);
+
+                /* Eigen::Vector3d point_world_eigen(point_world_frame.point.x,
+                                                point_world_frame.point.y,
+                                                point_world_frame.point.z);
+
+                Eigen::Vector3d point_transformed = R * point_world_eigen + t;
+
+                RCLCPP_INFO(this->get_logger(), "Point after applying custom transformation: x: %.3f, y: %.3f, z: %.3f",
+                            point_transformed.x(), point_transformed.y(), point_transformed.z()); */
 
             } catch (tf2::TransformException& ex) {
                 RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
-            }
-            
-            // Prompt the user to input real-world coordinates
-            double x_real, y_real, z_real;
-            std::cout << "Enter real-world coordinates for object " << i + 1 << " (x, y, z): ";
-            std::cin >> x_real >> y_real >> z_real;
-
-            // Store the real-world coordinates entered by the user
-            real_world_points.emplace_back(x_real, y_real, z_real);
-
-            RCLCPP_INFO(this->get_logger(), "Real-world measurement entered for object %lu: x: %.3f, y: %.3f, z: %.3f",
-                        i + 1, x_real, y_real, z_real);
-            
+            }  
         }
-        // After collecting all points, we proceed with the transformation calculation
-        if (!camera_points.empty() && camera_points.size() == real_world_points.size()) {
-            // Perform SVD to calculate the transformation matrix
-            Eigen::Matrix3d R;  // Rotation matrix
-            Eigen::Vector3d t;  // Translation vector
-
-            // Call the helper function to estimate the transformation
-            estimateTransform(camera_points, real_world_points, R, t);
-
-            Eigen::IOFormat CleanFmt(3, 0, ", ", "\n", "[", "]");
-
-            std::stringstream ss_r;
-            ss_r << R.format(CleanFmt);
-            RCLCPP_INFO(this->get_logger(), "Estimated Rotation Matrix:\n%s", ss_r.str().c_str());
-            RCLCPP_INFO(this->get_logger(), "Estimated Translation Vector: x: %.3f, y: %.3f, z: %.3f", t.x(), t.y(), t.z());
-        } else {
-            RCLCPP_ERROR(this->get_logger(), "Error: Mismatched number of detected centroids and real-world points.");
-        }
-
-        /* // Step 3: Output the centroids
-        if (!centroids.empty()) {
-            RCLCPP_INFO(this->get_logger(), "Red cylinder centroids detected at:");
-            for (const auto& centroid : centroids) {
-                RCLCPP_INFO(this->get_logger(), "x: %.3f, y: %.3f, z: %.3f", std::get<0>(centroid), std::get<1>(centroid), std::get<2>(centroid));
-            }
-        } else {
-            RCLCPP_INFO(this->get_logger(), "No clusters found.");
-        } */
-
 
         // Trigger another capture after processing
         //suggestCaptureSettingsAndCapture();
     }
 
-    void estimateTransform(const std::vector<Eigen::Vector3d>& camera_points, 
-                       const std::vector<Eigen::Vector3d>& real_world_points, 
-                       Eigen::Matrix3d& R, Eigen::Vector3d& t) 
-    {
-        // Calculate centroids of both sets of points
-        Eigen::Vector3d centroid_camera = Eigen::Vector3d::Zero();
-        Eigen::Vector3d centroid_world = Eigen::Vector3d::Zero();
-
-        for (size_t i = 0; i < camera_points.size(); ++i) {
-            centroid_camera += camera_points[i];
-            centroid_world += real_world_points[i];
-        }
-
-        centroid_camera /= camera_points.size();
-        centroid_world /= real_world_points.size();
-
-        // Subtract centroids from points
-        std::vector<Eigen::Vector3d> camera_centered, world_centered;
-        for (size_t i = 0; i < camera_points.size(); ++i) {
-            camera_centered.push_back(camera_points[i] - centroid_camera);
-            world_centered.push_back(real_world_points[i] - centroid_world);
-        }
-
-        // Compute covariance matrix
-        Eigen::Matrix3d H = Eigen::Matrix3d::Zero();
-        for (size_t i = 0; i < camera_centered.size(); ++i) {
-            H += camera_centered[i] * world_centered[i].transpose();
-        }
-
-        // Perform Singular Value Decomposition (SVD)
-        Eigen::JacobiSVD<Eigen::MatrixXd> svd(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        Eigen::Matrix3d U = svd.matrixU();
-        Eigen::Matrix3d V = svd.matrixV();
-
-        // Calculate rotation matrix
-        R = V * U.transpose();
-
-        // Ensure a right-handed coordinate system
-        if (R.determinant() < 0) {
-            V.col(2) *= -1;
-            R = V * U.transpose();
-        }
-
-        // Calculate translation vector
-        t = centroid_world - R * centroid_camera;
-    }
-
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr capture_client_;
-    rclcpp::Client<zivid_interfaces::srv::CaptureAssistantSuggestSettings>::SharedPtr capture_assistant_client_;
+    //rclcpp::Client<zivid_interfaces::srv::CaptureAssistantSuggestSettings>::SharedPtr capture_assistant_client_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_sub_;
 };
 
